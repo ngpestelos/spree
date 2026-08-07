@@ -7,10 +7,11 @@ import {
   StoreProvider,
   TopBar,
   useAutoCollapseSidebar,
+  usePermissions,
 } from '@spree/dashboard-core'
 import { SidebarInset, SidebarProvider } from '@spree/dashboard-ui'
 import { createFileRoute, Outlet, useRouterState } from '@tanstack/react-router'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { CommandPalette } from '../../components/spree/command-palette/command-palette'
 import { getAvailableUiLocales } from '../../i18n-setup'
 
@@ -25,10 +26,20 @@ function StoreLayout() {
   const { storeId } = Route.useParams()
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const inSettings = pathname.startsWith(`/${storeId}/settings`)
+  const { refresh: refreshPermissions } = usePermissions()
+  const isFirstStore = useRef(true)
 
   useEffect(() => {
     adminClient.setStore(storeId)
-  }, [storeId])
+    // Permissions are store-scoped (roles are held per store). The provider
+    // already loaded them for the initial store on login; reload only when
+    // the admin switches to a different store.
+    if (isFirstStore.current) {
+      isFirstStore.current = false
+      return
+    }
+    void refreshPermissions()
+  }, [storeId, refreshPermissions])
 
   return (
     <StoreProvider storeId={storeId}>
